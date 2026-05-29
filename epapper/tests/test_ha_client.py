@@ -80,6 +80,57 @@ async def test_ha_client_authenticates_and_subscribes():
 
 
 @pytest.mark.asyncio
+async def test_ha_client_fetches_initial_states():
+    # Regression: entities that never emit a state_changed after the add-on
+    # starts (weather, a stable temperature sensor) must still be populated
+    # from the initial get_states snapshot. Note: no state_changed events here.
+    ws = _MockWS([
+        json.dumps({"type": "auth_required"}),
+        json.dumps({"type": "auth_ok"}),
+        # subscribe ack (id=1), ignored
+        json.dumps({"id": 1, "type": "result", "success": True}),
+        # get_states result (id=2)
+        json.dumps({"id": 2, "type": "result", "success": True, "result": [
+            {"entity_id": "weather.home", "state": "cloudy",
+             "attributes": {"temperature": 9}},
+            {"entity_id": "sensor.obyvak_teplota", "state": "21.5",
+             "attributes": {"unit_of_measurement": "°C"}},
+            {"entity_id": "sensor.unwatched", "state": "x", "attributes": {}},
+        ]}),
+    ])
+    state = HAState()
+    triggered: list[str] = []
+
+    async def fake_connect(url):
+        return ws
+
+    client = HAClient(
+        ws_url="ws://test/api/websocket",
+        token="t",
+        state=state,
+        on_relevant_change=lambda eid: triggered.append(eid),
+        relevant_entities={"weather.home", "sensor.obyvak_teplota"},
+        _connect=fake_connect,
+    )
+    task = asyncio.create_task(client.run())
+    await asyncio.sleep(0.1)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    # get_states request was sent
+    assert any('"get_states"' in s for s in ws.sent)
+    # initial snapshot populated without any state_changed event
+    assert state.get("weather.home").attribute("temperature") == 9
+    assert state.get("sensor.obyvak_teplota").state == "21.5"
+    assert state.get("sensor.unwatched") is not None
+    # only relevant entities fired the redraw trigger
+    assert set(triggered) == {"weather.home", "sensor.obyvak_teplota"}
+
+
+@pytest.mark.asyncio
 async def test_ha_client_ignores_irrelevant_entities():
     ws = _MockWS([
         json.dumps({"type": "auth_required"}),
