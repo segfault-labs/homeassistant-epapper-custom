@@ -1,5 +1,5 @@
 name: e-Paper Renderer
-version: "0.1.0"
+version: "0.1.1"
 slug: epapper
 description: "Renders a family dashboard bitmap for a battery-powered ESP32 e-ink display."
 arch:
