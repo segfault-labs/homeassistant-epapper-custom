@@ -5,7 +5,7 @@ Note: render is unpacked from raw 1-bit bytes back to a PIL image for /preview.p
 from __future__ import annotations
 
 import io
-from typing import Callable
+from typing import Awaitable, Callable
 
 from fastapi import FastAPI, Header, Response
 from fastapi.responses import PlainTextResponse, StreamingResponse
@@ -15,7 +15,7 @@ from epapper.image_state import ImageState
 from epapper.renderer.canvas import HEIGHT, WIDTH
 
 
-def build_app(image_state: ImageState, render_now: Callable[[], None]) -> FastAPI:
+def build_app(image_state: ImageState, render_now: Callable[[], Awaitable[None]]) -> FastAPI:
     app = FastAPI(title="epapper", version="0.1.0")
 
     @app.get("/image.bin")
@@ -39,9 +39,12 @@ def build_app(image_state: ImageState, render_now: Callable[[], None]) -> FastAP
         return image_state.etag
 
     @app.get("/preview.png")
-    def get_preview(force: int = 0):
+    async def get_preview(force: int = 0):
         if force:
-            render_now()
+            # Must await: render is a coroutine. The previous sync route called
+            # asyncio.create_task() with no running loop (FastAPI runs sync routes
+            # in a threadpool) → RuntimeError 500.
+            await render_now()
         data = image_state.bytes_
         if len(data) != WIDTH * HEIGHT // 8:
             return Response(status_code=503, content=b"no image yet")

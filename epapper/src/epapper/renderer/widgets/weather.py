@@ -7,16 +7,13 @@ from epapper.ha_state import HAState
 from epapper.renderer.canvas import Canvas
 from epapper.renderer.fonts import font
 from epapper.renderer.layout import Rect
+from epapper.renderer.weather_icons import draw_weather_icon
 
 CZECH_DAYS_SHORT = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
 CONDITION_LABEL = {
     "sunny": "Slunečno", "clear-night": "Jasno", "cloudy": "Zataženo",
     "partlycloudy": "Polojasno", "rainy": "Déšť", "snowy": "Sníh",
     "fog": "Mlha", "windy": "Větrno", "lightning": "Bouřka",
-}
-CONDITION_ICON = {
-    "sunny": "☀", "clear-night": "☾", "cloudy": "☁", "partlycloudy": "⛅",
-    "rainy": "🌧", "snowy": "❄", "fog": "≡", "windy": "⤳", "lightning": "⚡",
 }
 WIND_DIRS = ["S", "SV", "V", "JV", "J", "JZ", "Z", "SZ"]
 
@@ -33,7 +30,6 @@ class WeatherWidget:
         draw = canvas.draw
         f_h = font("bold", 11)
         f_temp = font("bold", 44)
-        f_ico = font("regular", 40)
         f_desc = font("regular", 11)
         f_fc = font("regular", 11)
         f_fc_b = font("bold", 11)
@@ -47,8 +43,7 @@ class WeatherWidget:
 
         condition = entity.state
         temp = entity.attribute("temperature")
-        ic = CONDITION_ICON.get(condition, "·")
-        draw.text((region.x, region.y + 28), ic, font=f_ico, fill=0)
+        draw_weather_icon(draw, region.x, region.y + 28, 46, condition)
         if temp is not None:
             draw.text((region.x + 54, region.y + 28), f"{temp:.0f}°", font=f_temp, fill=0)
 
@@ -60,9 +55,10 @@ class WeatherWidget:
             desc = f"{desc} · vítr {wind:.0f} km/h {dir_label}"
         draw.text((region.x, region.y + 84), desc, font=f_desc, fill=0)
 
-        # 4-day forecast strip
-        forecast = entity.attribute("forecast", []) or []
-        forecast = forecast[:4]
+        # 4-day forecast strip. Forecast no longer lives in the state attributes
+        # (HA 2024+); it comes from the weather.get_forecasts service, stored on
+        # HAState by the ha_client.
+        forecast = state.get_forecast(self._entity)[:4]
         if not forecast:
             return
         strip_y = region.y + 110
@@ -75,15 +71,13 @@ class WeatherWidget:
             except (KeyError, ValueError):
                 d_label = "—"
             cond = day.get("condition", "")
-            ic = CONDITION_ICON.get(cond, "·")
             t = day.get("temperature")
             col_x = region.x + col_w * i + col_w // 2
 
-            ic_w = int(font("regular", 18).getlength(ic))
-            draw.text((col_x - ic_w // 2, strip_y + 4), ic, font=font("regular", 18), fill=0)
+            draw_weather_icon(draw, col_x - 11, strip_y + 4, 22, cond)
             dl_w = int(f_fc.getlength(d_label))
-            draw.text((col_x - dl_w // 2, strip_y + 24), d_label, font=f_fc, fill=0)
+            draw.text((col_x - dl_w // 2, strip_y + 28), d_label, font=f_fc, fill=0)
             if t is not None:
                 t_txt = f"{t:.0f}°"
                 tw = int(f_fc_b.getlength(t_txt))
-                draw.text((col_x - tw // 2, strip_y + 36), t_txt, font=f_fc_b, fill=0)
+                draw.text((col_x - tw // 2, strip_y + 42), t_txt, font=f_fc_b, fill=0)

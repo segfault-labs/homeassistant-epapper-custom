@@ -1,5 +1,5 @@
 name: e-Paper Renderer
-version: "0.1.1"
+version: "0.1.2"
 slug: epapper
 description: "Renders a family dashboard bitmap for a battery-powered ESP32 e-ink display."
 arch:
@@ -18,17 +18,36 @@ ports_description:
 options:
   refresh_debounce_seconds: 30
   calendar_entity: "calendar.family"
-  weather_entity: "weather.home"
+  weather_entity: "weather.forecast_domov"
   weather_location: "Praha"
-  todo_nakup_entity: "todo.nakup"
+  todo_nakup_entity: "todo.nakupni_seznam"
   todo_ukoly_entity: "todo.ukoly"
   battery_entity: "sensor.epaper_battery_voltage"
   transit_entities: []
   sensors:
     - title: "OBÝVÁK"
-      value_entity: "sensor.obyvak_teplota"
-      value_format: "{:.0f}°C"
-      subtitle_entity: "sensor.obyvak_humidity"
+      value_entity: "sensor.xiaomi_lywsd03mmc_z_teplota"
+      value_format: "{:.1f}"
+      value_unit: "°C"
+      subtitle_entity: "sensor.xiaomi_lywsd03mmc_z_vlhkost_vzduchu"
+      subtitle_format: "{:.0f}% RH"
+    - title: "LOŽNICE"
+      value_entity: "sensor.loznice_teplota"
+      value_format: "{:.1f}"
+      value_unit: "°C"
+      subtitle_entity: "sensor.loznice_vlhkost_vzduchu"
+      subtitle_format: "{:.0f}% RH"
+    - title: "EMA"
+      value_entity: "sensor.ema_teplota"
+      value_format: "{:.1f}"
+      value_unit: "°C"
+      subtitle_entity: "sensor.ema_vlhkost_vzduchu"
+      subtitle_format: "{:.0f}% RH"
+    - title: "TECHNICKÁ"
+      value_entity: "sensor.techbicka_mistnost_teplota"
+      value_format: "{:.1f}"
+      value_unit: "°C"
+      subtitle_entity: "sensor.techbicka_mistnost_vlhkost_vzduchu"
       subtitle_format: "{:.0f}% RH"
   log_level: "info"
 schema:

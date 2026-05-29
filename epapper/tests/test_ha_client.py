@@ -131,6 +131,54 @@ async def test_ha_client_fetches_initial_states():
 
 
 @pytest.mark.asyncio
+async def test_ha_client_fetches_forecast():
+    # Forecast comes from the weather.get_forecasts service, not state attributes.
+    # ids: subscribe=1, get_states=2, get_forecasts=3.
+    ws = _MockWS([
+        json.dumps({"type": "auth_required"}),
+        json.dumps({"type": "auth_ok"}),
+        json.dumps({"id": 2, "type": "result", "success": True, "result": []}),
+        json.dumps({"id": 3, "type": "result", "success": True, "result": {
+            "response": {"weather.home": {"forecast": [
+                {"datetime": "2026-05-30T00:00:00", "condition": "sunny", "temperature": 25},
+                {"datetime": "2026-05-31T00:00:00", "condition": "rainy", "temperature": 18},
+            ]}},
+        }}),
+    ])
+    state = HAState()
+    triggered: list[str] = []
+
+    async def fake_connect(url):
+        return ws
+
+    client = HAClient(
+        ws_url="ws://test/api/websocket",
+        token="t",
+        state=state,
+        on_relevant_change=lambda eid: triggered.append(eid),
+        relevant_entities={"weather.home"},
+        weather_entities=["weather.home"],
+        _connect=fake_connect,
+    )
+    task = asyncio.create_task(client.run())
+    await asyncio.sleep(0.1)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    # get_forecasts service call was sent
+    assert any('"get_forecasts"' in s for s in ws.sent)
+    # forecast stored on state
+    fc = state.get_forecast("weather.home")
+    assert len(fc) == 2
+    assert fc[0]["condition"] == "sunny" and fc[1]["temperature"] == 18
+    # redraw trigger fired for the weather entity
+    assert "weather.home" in triggered
+
+
+@pytest.mark.asyncio
 async def test_ha_client_ignores_irrelevant_entities():
     ws = _MockWS([
         json.dumps({"type": "auth_required"}),

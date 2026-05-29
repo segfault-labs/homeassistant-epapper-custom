@@ -49,6 +49,15 @@ async def amain(cfg: AppConfig) -> None:
         level=cfg.log_level.upper(),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    # Auth diagnostics for the recurring `auth_invalid` issue. Never logs the
+    # token value — only whether it is present and its length. An empty/short
+    # token points at SUPERVISOR_TOKEN not being injected (deployment), a full
+    # token being rejected points at the supervisor proxy / stale token.
+    log.info(
+        "HA connection: ws_url=%s token_present=%s token_len=%d",
+        cfg.ha_ws_url, bool(cfg.ha_token), len(cfg.ha_token),
+    )
+
     ha_state = HAState()
     image_state = ImageState()
     render = build_render_callback(cfg, ha_state, image_state)
@@ -60,6 +69,7 @@ async def amain(cfg: AppConfig) -> None:
         state=ha_state,
         on_relevant_change=lambda _eid: debouncer.trigger(),
         relevant_entities=cfg.all_watched_entities(),
+        weather_entities=[cfg.weather_entity] if cfg.weather_entity else [],
     )
 
     # Initial render attempt (will be empty until HA responds, but server is up)
@@ -67,7 +77,7 @@ async def amain(cfg: AppConfig) -> None:
 
     app = build_app(
         image_state=image_state,
-        render_now=lambda: asyncio.create_task(render()),
+        render_now=render,
     )
     server_cfg = uvicorn.Config(
         app, host="0.0.0.0", port=cfg.listen_port, log_level=cfg.log_level,

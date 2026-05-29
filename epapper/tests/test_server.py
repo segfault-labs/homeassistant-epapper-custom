@@ -15,9 +15,13 @@ def state():
     return s
 
 
+async def _noop_render():
+    return None
+
+
 @pytest.fixture
 def client(state):
-    app = build_app(image_state=state, render_now=lambda: None)
+    app = build_app(image_state=state, render_now=_noop_render)
     return TestClient(app)
 
 
@@ -72,7 +76,11 @@ def test_preview_force_triggers_render():
     state = ImageState()
     state.set(b"\xff" * 48000)
     rendered = []
-    app = build_app(image_state=state, render_now=lambda: rendered.append(1))
+
+    async def fake_render():
+        rendered.append(1)
+
+    app = build_app(image_state=state, render_now=fake_render)
     client = TestClient(app)
     client.get("/preview.png?force=1")
     assert rendered == [1]

@@ -10,13 +10,13 @@ def _full_state():
     s = HAState()
     s.set(Entity("weather.home", "sunny", {
         "temperature": 21.0, "wind_speed": 8, "wind_bearing": 225,
-        "forecast": [
-            {"datetime": "2026-05-18T00:00:00+02:00", "condition": "partlycloudy", "temperature": 22},
-            {"datetime": "2026-05-19T00:00:00+02:00", "condition": "rainy", "temperature": 17},
-            {"datetime": "2026-05-20T00:00:00+02:00", "condition": "rainy", "temperature": 15},
-            {"datetime": "2026-05-21T00:00:00+02:00", "condition": "sunny", "temperature": 19},
-        ],
     }))
+    s.set_forecast("weather.home", [
+        {"datetime": "2026-05-18T00:00:00+02:00", "condition": "partlycloudy", "temperature": 22},
+        {"datetime": "2026-05-19T00:00:00+02:00", "condition": "rainy", "temperature": 17},
+        {"datetime": "2026-05-20T00:00:00+02:00", "condition": "rainy", "temperature": 15},
+        {"datetime": "2026-05-21T00:00:00+02:00", "condition": "sunny", "temperature": 19},
+    ])
     s.set(Entity("calendar.family", "on", {
         "all_events": [
             {"summary": "Doktor Novák",

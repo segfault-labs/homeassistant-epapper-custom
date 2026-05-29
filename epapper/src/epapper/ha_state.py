@@ -22,6 +22,10 @@ class Entity:
 @dataclass
 class HAState:
     entities: dict[str, Entity] = field(default_factory=dict)
+    # Weather forecasts keyed by entity_id. Stored separately because HA 2024+
+    # removed the `forecast` state attribute — it now only comes from the
+    # weather.get_forecasts service response.
+    forecasts: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     last_updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def set(self, entity: Entity) -> None:
@@ -30,3 +34,10 @@ class HAState:
 
     def get(self, entity_id: str) -> Entity | None:
         return self.entities.get(entity_id)
+
+    def set_forecast(self, entity_id: str, forecast: list[dict[str, Any]]) -> None:
+        self.forecasts[entity_id] = forecast
+        self.last_updated = datetime.now(timezone.utc)
+
+    def get_forecast(self, entity_id: str) -> list[dict[str, Any]]:
+        return self.forecasts.get(entity_id, [])
